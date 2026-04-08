@@ -1,0 +1,13 @@
+*
+!.dockerignore
+!TurboQuant/
+!TurboQuant/Dockerfile
+!LegacyQuant/
+!LegacyQuant/Dockerfile
+!repos/
+!repos/llama-cpp-turboquant/
+!repos/llama-cpp-turboquant/**
+!repos/turboquant_plus/
+!repos/turboquant_plus/**
+!repos/llama.cpp/
+!repos/llama.cpp/**

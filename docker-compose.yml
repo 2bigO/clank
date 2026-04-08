@@ -1,0 +1,82 @@
+services:
+  qwopus-pi:
+    build:
+      context: .
+      dockerfile: TurboQuant/Dockerfile
+    image: turboquant-rocm:latest
+    container_name: qwopus-pi
+    devices:
+      - /dev/dri
+      - /dev/kfd
+    group_add:
+      - video
+      - render
+    security_opt:
+      - seccomp=unconfined
+    ports:
+      - "8080:8080"
+    volumes:
+      - /home/keyvan/models:/models:ro
+    command:
+      - llama-server
+      - --model
+      - /models/Jackrong/Qwopus3.5-27B-v3-GGUF/Qwopus3.5-27B-v3-Q6_K.gguf
+      - --alias
+      - qwopus-pi
+      - --gpu-layers
+      - "999"
+      - --flash-attn
+      - "on"
+      - --cache-type-k
+      - q8_0
+      - --cache-type-v
+      - turbo4
+      - --ctx-size
+      - "262144"
+      - --parallel
+      - "1"
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+
+  gemma-hermes:
+    build:
+      context: .
+      dockerfile: TurboQuant/Dockerfile
+    image: turboquant-rocm:latest
+    container_name: gemma-hermes
+    devices:
+      - /dev/dri
+      - /dev/kfd
+    group_add:
+      - video
+      - render
+    security_opt:
+      - seccomp=unconfined
+    ports:
+      - "8081:8080"
+    volumes:
+      - /home/keyvan/models:/models:ro
+    command:
+      - llama-server
+      - --model
+      - /models/unsloth/gemma-4-E4B-it-GGUF/gemma-4-E4B-it-UD-Q6_K_XL.gguf
+      - --alias
+      - gemma-hermes
+      - --gpu-layers
+      - "999"
+      - --flash-attn
+      - "on"
+      - --cache-type-k
+      - q8_0
+      - --cache-type-v
+      - turbo4
+      - --ctx-size
+      - "131072"
+      - --parallel
+      - "1"
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"

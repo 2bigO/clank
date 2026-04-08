@@ -1,0 +1,15 @@
+model:
+  default: gemma-hermes
+  provider: custom
+  base_url: http://localhost:8081/v1
+  api_key: dummy
+  context_length: 131072
+
+custom_providers:
+  - name: Local Gemma E4B
+    base_url: http://localhost:8081/v1
+    api_key: dummy
+    model: gemma-hermes
+    models:
+      gemma-hermes:
+        context_length: 131072

@@ -1,0 +1,9 @@
+{
+  "defaultProvider": "local-qwopus",
+  "defaultModel": "qwopus-pi",
+  "defaultThinkingLevel": "medium",
+  "enabledModels": [
+    "qwopus-pi"
+  ],
+  "sessionDir": "sessions"
+}

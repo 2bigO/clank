@@ -5,6 +5,20 @@ model:
   api_key: dummy
   context_length: 131072
 
+stt:
+  provider: openai
+  openai:
+    model: whisper-1
+    base_url: http://stt:8080/v1
+    api_key: dummy
+
+telegram:
+  require_mention: true
+
+skills:
+  external_dirs:
+    - /workspace/Hermes/skills
+
 custom_providers:
   - name: Local Gemma E4B
     base_url: http://gemma-hermes:8080/v1

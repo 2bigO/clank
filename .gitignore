@@ -1,6 +1,9 @@
 repos/
+.codex
 .codex/
 __pycache__/
 bot.py
 Hermes/root/
 Hermes/.env
+.env
+sessions/

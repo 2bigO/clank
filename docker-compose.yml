@@ -1,4 +1,33 @@
 services:
+  stt:
+    build:
+      context: .
+      dockerfile: STT/Dockerfile
+    image: whisper-stt-local:latest
+    container_name: stt
+    ports:
+      - "127.0.0.1:${STT_PORT:-8170}:8080"
+    volumes:
+      - ${MODEL_ROOT:?set MODEL_ROOT in .env}:/models:ro
+    command:
+      - --model
+      - ${STT_MODEL_PATH:-/models/oxide-lab/whisper-large-v3-GGUF/whisper.cpp/whisper-large-v3-q8_0.gguf}
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --request-path
+      - /v1
+      - --inference-path
+      - /audio/transcriptions
+      - --convert
+      - --language
+      - auto
+      - --threads
+      - "16"
+      - --processors
+      - "1"
+
   qwopus-pi:
     build:
       context: .
@@ -14,13 +43,13 @@ services:
     security_opt:
       - seccomp=unconfined
     ports:
-      - "8080:8080"
+      - "${QWOPUS_PORT:-8080}:8080"
     volumes:
-      - /home/keyvan/models:/models:ro
+      - ${MODEL_ROOT:?set MODEL_ROOT in .env}:/models:ro
     command:
       - llama-server
       - --model
-      - /models/Jackrong/Qwopus3.5-27B-v3-GGUF/Qwopus3.5-27B-v3-Q6_K.gguf
+      - ${QWOPUS_MODEL_PATH:-/models/Jackrong/Qwopus3.5-27B-v3-GGUF/Qwopus3.5-27B-v3-Q6_K.gguf}
       - --alias
       - qwopus-pi
       - --gpu-layers
@@ -55,15 +84,15 @@ services:
     security_opt:
       - seccomp=unconfined
     ports:
-      - "8081:8080"
+      - "${GEMMA_PORT:-8081}:8080"
     volumes:
-      - /home/keyvan/models:/models:ro
+      - ${MODEL_ROOT:?set MODEL_ROOT in .env}:/models:ro
     command:
       - llama-server
       - --model
-      - /models/unsloth/gemma-4-E4B-it-GGUF/gemma-4-E4B-it-UD-Q6_K_XL.gguf
+      - ${GEMMA_MODEL_PATH:-/models/Jackrong/Gemopus-4-E4B-it-GGUF/gemma-4-E4B-it.Q8_0.gguf}
       - --mmproj
-      - /models/unsloth/gemma-4-E4B-it-GGUF/mmproj-BF16.gguf
+      - ${GEMMA_MMPROJ_PATH:-/models/unsloth/gemma-4-E4B-it-GGUF/mmproj-BF16.gguf}
       - --alias
       - gemma-hermes
       - --gpu-layers
@@ -83,6 +112,26 @@ services:
       - --port
       - "8080"
 
+  pi:
+    build:
+      context: .
+      dockerfile: Pi/Dockerfile
+    image: pi-local:latest
+    container_name: pi
+    depends_on:
+      - qwopus-pi
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./Pi/models.json:/etc/pi-bootstrap/models.json:ro
+      - ./Pi/settings.json:/etc/pi-bootstrap/settings.json:ro
+      - pi-agent-home:/root/.pi/agent
+      - .:/workspace
+    working_dir: /workspace
+    command:
+      - sleep
+      - infinity
+
   hermes:
     build:
       context: .
@@ -91,6 +140,7 @@ services:
     container_name: hermes
     depends_on:
       - gemma-hermes
+      - stt
     stdin_open: true
     tty: true
     env_file:
@@ -98,7 +148,9 @@ services:
     volumes:
       - ./Hermes/config.yaml:/etc/hermes-bootstrap/config.yaml:ro
       - hermes-home:/root/.hermes
-      - ./Hermes/root:/workspace
+      - .:/workspace
+      - ${DOCKER_BIN:-/usr/bin/docker}:/usr/local/bin/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     working_dir: /workspace
     command:
       - sleep
@@ -109,14 +161,17 @@ services:
     container_name: hermes-api
     depends_on:
       - gemma-hermes
+      - stt
     env_file:
       - ./Hermes/.env
     ports:
-      - "127.0.0.1:8642:8642"
+      - "127.0.0.1:${HERMES_API_PORT:-8642}:8642"
     volumes:
       - ./Hermes/config.yaml:/etc/hermes-bootstrap/config.yaml:ro
       - hermes-home:/root/.hermes
-      - ./Hermes/root:/workspace
+      - .:/workspace
+      - ${DOCKER_BIN:-/usr/bin/docker}:/usr/local/bin/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     working_dir: /workspace
     command:
       - hermes
@@ -124,3 +179,4 @@ services:
 
 volumes:
   hermes-home:
+  pi-agent-home:

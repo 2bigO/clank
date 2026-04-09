@@ -1,0 +1,35 @@
+{
+  "providers": {
+    "local-qwopus": {
+      "baseUrl": "http://qwopus-pi:8080/v1",
+      "api": "openai-completions",
+      "apiKey": "dummy",
+      "authHeader": true,
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false,
+        "supportsUsageInStreaming": false,
+        "thinkingFormat": "qwen-chat-template",
+        "maxTokensField": "max_tokens"
+      },
+      "models": [
+        {
+          "id": "qwopus-pi",
+          "name": "Qwopus Pi",
+          "reasoning": true,
+          "input": [
+            "text"
+          ],
+          "contextWindow": 262144,
+          "maxTokens": 32768,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        }
+      ]
+    }
+  }
+}

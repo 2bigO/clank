@@ -4,8 +4,14 @@
 !TurboQuant/Dockerfile
 !LegacyQuant/
 !LegacyQuant/Dockerfile
+!STT/
+!STT/**
 !Hermes/
 !Hermes/**
+!Pi/
+!Pi/**
+!scripts/
+!scripts/**
 !repos/
 !repos/llama-cpp-turboquant/
 !repos/llama-cpp-turboquant/**
@@ -15,3 +21,7 @@
 !repos/llama.cpp/**
 !repos/hermes-agent/
 !repos/hermes-agent/**
+!repos/pi-mono/
+!repos/pi-mono/**
+!repos/whisper.cpp/
+!repos/whisper.cpp/**

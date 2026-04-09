@@ -51,9 +51,8 @@ RUN --mount=type=bind,source=repos/llama-cpp-turboquant,target=/mnt/src/llama-cp
     && rsync -a --delete /mnt/src/llama-cpp-turboquant/ /opt/src/llama-cpp-turboquant/ \
     && rsync -a --delete /mnt/src/turboquant_plus/ /opt/src/turboquant_plus/
 
-RUN --mount=type=bind,source=repos/turboquant_plus,target=/mnt/src/turboquant_plus,readonly \
-    --mount=type=cache,target=/root/.cache/pip \
-    python3 -m pip install --prefix=/usr/local /mnt/src/turboquant_plus
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 -m pip install --prefix=/usr/local /opt/src/turboquant_plus
 
 WORKDIR /opt/src/llama-cpp-turboquant
 

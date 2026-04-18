@@ -120,12 +120,10 @@ services:
     container_name: pi
     depends_on:
       - qwopus-pi
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     stdin_open: true
     tty: true
     volumes:
-      - ./Pi/models.json:/etc/pi-bootstrap/models.json:ro
-      - ./Pi/settings.json:/etc/pi-bootstrap/settings.json:ro
-      - pi-agent-home:/root/.pi/agent
       - .:/workspace
     working_dir: /workspace
     command:
@@ -149,6 +147,7 @@ services:
       - ./Hermes/config.yaml:/etc/hermes-bootstrap/config.yaml:ro
       - hermes-home:/root/.hermes
       - .:/workspace
+      - ${MODEL_ROOT:?set MODEL_ROOT in .env}:/models
       - ${DOCKER_BIN:-/usr/bin/docker}:/usr/local/bin/docker:ro
       - /var/run/docker.sock:/var/run/docker.sock
     working_dir: /workspace
@@ -164,12 +163,16 @@ services:
       - stt
     env_file:
       - ./Hermes/.env
+    environment:
+      - HOST_UID=${HOST_UID:-1000}
+      - HOST_GID=${HOST_GID:-1000}
     ports:
       - "127.0.0.1:${HERMES_API_PORT:-8642}:8642"
     volumes:
       - ./Hermes/config.yaml:/etc/hermes-bootstrap/config.yaml:ro
       - hermes-home:/root/.hermes
       - .:/workspace
+      - ${MODEL_ROOT:?set MODEL_ROOT in .env}:/models
       - ${DOCKER_BIN:-/usr/bin/docker}:/usr/local/bin/docker:ro
       - /var/run/docker.sock:/var/run/docker.sock
     working_dir: /workspace
@@ -179,4 +182,3 @@ services:
 
 volumes:
   hermes-home:
-  pi-agent-home:

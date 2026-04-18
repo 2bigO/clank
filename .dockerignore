@@ -21,7 +21,11 @@
 !repos/llama.cpp/**
 !repos/hermes-agent/
 !repos/hermes-agent/**
+!repos/huggingface_hub/
+!repos/huggingface_hub/**
 !repos/pi-mono/
 !repos/pi-mono/**
 !repos/whisper.cpp/
 !repos/whisper.cpp/**
+!tools/
+!tools/**

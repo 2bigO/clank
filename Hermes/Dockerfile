@@ -18,8 +18,15 @@ RUN --mount=type=bind,source=repos/hermes-agent,target=/mnt/src/hermes-agent,rea
     mkdir -p /opt/src/hermes-agent \
     && rsync -a --delete /mnt/src/hermes-agent/ /opt/src/hermes-agent/
 
+RUN --mount=type=bind,source=repos/huggingface_hub,target=/mnt/src/huggingface_hub,readonly \
+    mkdir -p /opt/src/huggingface_hub \
+    && rsync -a --delete /mnt/src/huggingface_hub/ /opt/src/huggingface_hub/
+
 RUN python -m pip install --upgrade pip setuptools wheel \
     && python -m pip install /opt/src/hermes-agent[cli,pty] python-telegram-bot requests
+
+COPY tools/HuggingFace /opt/src/tools/HuggingFace
+RUN python -m pip install /opt/src/huggingface_hub[hf_xet]
 
 RUN mkdir -p /etc/hermes-bootstrap /root/.hermes /workspace
 

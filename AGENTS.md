@@ -67,9 +67,14 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
   - host/model/path/port variables for compose
 - `Hermes/.env`
   - Hermes secrets and gateway env
+  - `HF_TOKEN` for authenticated HuggingFace downloads
+  - `MODEL_ROOT=/models` inside Hermes containers
 - `Hermes/config.yaml`
   - Hermes model/STT config
   - external skills dir: `/workspace/Hermes/skills`
+  - `terminal.cwd: /workspace`
+  - streaming enabled for Telegram edits
+  - `huggingface.token` / `huggingface.model_root` read from env
 - `Pi/models.json`
   - Pi provider config
   - `local-qwopus` -> `http://qwopus-pi:8080/v1`
@@ -90,20 +95,24 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
 - `repos/`
   - local source checkouts used at Docker build time
   - gitignored
+- `tools/`
+  - external tool packages that live outside `hermes-agent`
+  - `tools/HuggingFace/` is copied into the Hermes image and imported dynamically
+  - paired source repo lives in `repos/huggingface_hub/`
 
 ## Persistence
 
 - `hermes-home`
   - `/root/.hermes`
 - `pi-agent-home`
-  - `/root/.pi/agent`
 - models live outside repo under `${MODEL_ROOT}`, mounted to `/models`
 
 ## Build Pattern
 
 - Dockerfiles bind-mount local repos from `repos/`
 - `scripts/init.sh` is the canonical bootstrap for missing repos and env files
-- rebuild after updating `repos/*`
+- rebuild after updating `repos/*` or `tools/*`
+- HuggingFace support depends on both `repos/huggingface_hub/` and `tools/HuggingFace/`
 
 ## Constraints
 
@@ -111,6 +120,9 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
 - Hermes needs `stt` for Telegram voice
 - Hermes delegates coding to Pi via Docker CLI wrapper, not Pi RPC
 - Pi is the preferred writer for repo/system changes; Hermes orchestrates and reports
+- Pi runs as the host UID/GID via docker-compose `user:` so files written in `/workspace` are host-owned
+- HuggingFace downloads land in `/models` and are chowned back to the host UID/GID by the tool
+- Telegram download progress tracking is gateway-owned: the gateway edits one tracker message every ~5s until completion
 
 ## Ops
 
@@ -120,6 +132,13 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
 - headless Pi: `./scripts/pi-delegate "task"`
 - Hermes CLI: `docker compose exec hermes hermes`
 - Hermes API: `http://127.0.0.1:${HERMES_API_PORT}/v1`
+
+## Recovery Notes
+
+- Working HuggingFace integration spans both the root repo and `repos/hermes-agent`
+- Gateway tracker logic lives in `repos/hermes-agent/gateway/run.py`
+- External HuggingFace tool code lives in `tools/HuggingFace/`
+- If the workspace is recloned, restore both the root files and the `repos/hermes-agent` patches, then rebuild `hermes-local`
 
 ## Change Policy
 

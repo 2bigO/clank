@@ -2,8 +2,7 @@
 
 FROM node:20-bookworm-slim
 
-ENV PI_CODING_AGENT_DIR=/root/.pi/agent \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
@@ -29,10 +28,10 @@ RUN --mount=type=cache,target=/root/.npm \
     npm install \
     && npm run build
 
-RUN mkdir -p /etc/pi-bootstrap "${PI_CODING_AGENT_DIR}" /workspace
+# Make /workspace writable by any UID set via docker-compose user:.
+RUN mkdir -p /workspace \
+    && chmod 1777 /workspace
 
-COPY Pi/models.json /etc/pi-bootstrap/models.json
-COPY Pi/settings.json /etc/pi-bootstrap/settings.json
 COPY Pi/pi-wrapper.sh /usr/local/bin/pi
 COPY Pi/entrypoint.sh /usr/local/bin/pi-entrypoint
 

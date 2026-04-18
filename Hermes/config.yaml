@@ -5,6 +5,19 @@ model:
   api_key: dummy
   context_length: 131072
 
+terminal:
+  cwd: /workspace
+
+streaming:
+  enabled: true
+  edit_interval: 0.5
+  buffer_threshold: 40
+  cursor: " ▎"
+
+huggingface:
+  token: ${HF_TOKEN}
+  model_root: ${MODEL_ROOT}
+
 stt:
   provider: openai
   openai:

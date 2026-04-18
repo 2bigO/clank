@@ -1,4 +1,21 @@
 services:
+  beads:
+    build:
+      context: .
+      dockerfile: Beads/Dockerfile
+    image: beads-local:latest
+    container_name: beads
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      - BEADS_DOLT_SHARED_SERVER=1
+      - BEADS_DOLT_SERVER_HOST=127.0.0.1
+      - BEADS_DOLT_SERVER_PORT=3308
+      - BEADS_DIR=/workspace/.beads
+    volumes:
+      - .:/workspace
+      - ./Beads/state:/var/lib/beads
+    working_dir: /workspace
+
   stt:
     build:
       context: .
@@ -119,12 +136,17 @@ services:
     image: pi-local:latest
     container_name: pi
     depends_on:
+      - beads
       - qwopus-pi
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     stdin_open: true
     tty: true
     environment:
       - HOME=/workspace
+      - BEADS_DOLT_SHARED_SERVER=1
+      - BEADS_DOLT_SERVER_HOST=beads
+      - BEADS_DOLT_SERVER_PORT=3308
+      - BEADS_DIR=/workspace/.beads
     volumes:
       - .:/workspace
     working_dir: /workspace
@@ -139,12 +161,18 @@ services:
     image: hermes-local:latest
     container_name: hermes
     depends_on:
+      - beads
       - gemma-hermes
       - stt
     stdin_open: true
     tty: true
     env_file:
       - ./Hermes/.env
+    environment:
+      - BEADS_DOLT_SHARED_SERVER=1
+      - BEADS_DOLT_SERVER_HOST=beads
+      - BEADS_DOLT_SERVER_PORT=3308
+      - BEADS_DIR=/workspace/host/.beads
     volumes:
       - ./Hermes/config.yaml:/etc/hermes-bootstrap/config.yaml:ro
       - hermes-home:/root/.hermes
@@ -162,11 +190,16 @@ services:
     image: hermes-local:latest
     container_name: hermes-api
     depends_on:
+      - beads
       - gemma-hermes
       - stt
     env_file:
       - ./Hermes/.env
     environment:
+      - BEADS_DOLT_SHARED_SERVER=1
+      - BEADS_DOLT_SERVER_HOST=beads
+      - BEADS_DOLT_SERVER_PORT=3308
+      - BEADS_DIR=/workspace/host/.beads
       - HOST_UID=${HOST_UID:-1000}
       - HOST_GID=${HOST_GID:-1000}
     ports:

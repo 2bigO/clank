@@ -44,9 +44,16 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
   - image: `Pi/Dockerfile`
   - mounts:
     - repo root -> `/workspace` rw
-    - `pi-agent-home` -> `/root/.pi/agent`
-    - `Pi/models.json` / `Pi/settings.json` bootstrap
+    - Pi runtime state lives under repo-local `/workspace/.pi/`
+    - `Pi/models.json` / `Pi/settings.json` are bootstrapped into the Pi agent runtime on invocation
   - UX: `docker compose exec pi pi`
+- `beads`
+  - shared Beads / Dolt SQL runtime
+  - image: `Beads/Dockerfile`
+  - mounts:
+    - repo root -> `/workspace` rw
+    - `Beads/state` -> `/var/lib/beads` rw
+  - provides the shared Dolt server for `bd`
 - `stt`
   - local OpenAI-style transcription endpoint
   - image: `STT/Dockerfile`
@@ -78,6 +85,11 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
   - `terminal.cwd: /workspace`
   - streaming enabled for Telegram edits
   - `huggingface.token` / `huggingface.model_root` read from env
+- `.beads/`
+  - project-local Beads workspace metadata/config
+  - created by `./scripts/beads-init`
+- `Beads/state/`
+  - Beads service server state and shared Dolt data
 - `Pi/models.json`
   - Pi provider config
   - `local-qwopus` -> `http://qwopus-pi:8080/v1`
@@ -135,7 +147,10 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
 
 - bootstrap: `./scripts/init.sh`
 - start: `docker compose up -d --build`
+- Beads init: `./scripts/beads-init`
 - Pi CLI: `docker compose exec pi pi`
+- Beads CLI in Pi: `docker compose exec pi bd ...`
+- Beads CLI in Hermes: `docker compose exec hermes bd ...`
 - headless Pi: `./scripts/pi-delegate "task"`
 - Hermes CLI: `docker compose exec hermes hermes`
 - Hermes API: `http://127.0.0.1:${HERMES_API_PORT}/v1`

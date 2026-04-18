@@ -8,3 +8,8 @@ Hermes/.env
 .env
 sessions/
 .pi/
+.beads/
+.dolt/
+.doltcfg/
+beads_global/
+workspace/

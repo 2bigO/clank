@@ -6,6 +6,8 @@
 !LegacyQuant/Dockerfile
 !STT/
 !STT/**
+!Beads/
+!Beads/**
 !Hermes/
 !Hermes/**
 !Pi/
@@ -19,6 +21,8 @@
 !repos/turboquant_plus/**
 !repos/llama.cpp/
 !repos/llama.cpp/**
+!repos/beads/
+!repos/beads/**
 !repos/hermes-agent/
 !repos/hermes-agent/**
 !repos/huggingface_hub/

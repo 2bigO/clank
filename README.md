@@ -21,6 +21,17 @@ Pi still sees the live repo directly at `/workspace`, so when delegating from He
 
 - Hermes path `/workspace/host/...` maps to Pi path `/workspace/...`
 
+## Beads
+
+- Shared Beads runtime service: `beads`
+- Initialize project-local Beads metadata with:
+
+```bash
+./scripts/beads-init
+```
+
+- Pi and Hermes both have `bd` available after build.
+
 ## Quickstart
 
 1. Copy env files:

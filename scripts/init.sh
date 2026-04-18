@@ -53,6 +53,7 @@ clone_repo "llama-cpp-turboquant" "https://github.com/TheTom/llama-cpp-turboquan
 clone_repo "llama.cpp" "https://github.com/ggml-org/llama.cpp.git"
 clone_repo "turboquant_plus" "https://github.com/TheTom/turboquant_plus.git"
 clone_repo "hermes-agent" "https://github.com/NousResearch/hermes-agent.git"
+clone_repo "beads" "https://github.com/gastownhall/beads.git"
 clone_repo "huggingface_hub" "https://github.com/huggingface/huggingface_hub.git"
 clone_repo "pi-mono" "https://github.com/badlogic/pi-mono.git"
 clone_repo "whisper.cpp" "https://github.com/ggml-org/whisper.cpp.git"

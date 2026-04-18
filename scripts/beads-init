@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(pwd)"
+db_name="$(basename "$repo_root" | tr '.-' '_')"
+beads_dir="$repo_root/.beads"
+port="${BEADS_DOLT_SERVER_PORT:-3308}"
+
+docker compose up -d beads >/dev/null
+
+docker compose exec -T beads bash -lc \
+  "cd /workspace && bd init --shared-server --external --server-host 127.0.0.1 --server-port ${port} --server-user root --database ${db_name} --non-interactive --skip-hooks --skip-agents --quiet || true"
+
+mkdir -p "$beads_dir"
+cat > "$beads_dir/metadata.json" <<EOF
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_server_host": "beads",
+  "dolt_server_port": ${port},
+  "dolt_server_user": "root",
+  "dolt_database": "${db_name}",
+  "global_dolt_database": "beads_global"
+}
+EOF
+cat > "$beads_dir/config.yaml" <<EOF
+dolt:
+  shared-server: true
+EOF
+chmod 700 "$beads_dir"
+
+docker compose exec -T pi bash -lc 'cd /workspace && bd ready --json >/dev/null'
+printf 'Beads initialized for %s using database %s\n' "$repo_root" "$db_name"

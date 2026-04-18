@@ -104,6 +104,45 @@ def _compute_progress(plan_items: List[Dict[str, Any]]) -> float:
     return round((completed / len(plan_items)) * 100.0, 1)
 
 
+def _worker_is_alive(project_id: str) -> bool:
+    worker = _workers.get(project_id)
+    return bool(worker and worker.is_alive())
+
+
+def _process_is_alive(project_id: str) -> bool:
+    proc = _running_processes.get(project_id)
+    return bool(proc and proc.poll() is None)
+
+
+def _resume_stale_project(project_id: str, reason: str = "") -> Optional[Dict[str, Any]]:
+    project = _get_project(project_id)
+    if not project:
+        return None
+    if project.get("state") not in ACTIVE_STATES or project.get("cancel_requested"):
+        return project
+    if _worker_is_alive(project_id) or _process_is_alive(project_id):
+        return project
+
+    def mutator(current: Dict[str, Any]) -> None:
+        current_task_id = current.get("current_task_id")
+        for item in current.get("plan_items", []):
+            if item.get("state") == STATE_RUNNING or item.get("id") == current_task_id:
+                item["state"] = STATE_PENDING
+                item["started_at"] = None
+        if current.get("state") in {STATE_RUNNING, STATE_PLANNING, STATE_BLOCKED}:
+            current["state"] = STATE_PENDING
+        current["current_task_id"] = None
+        note = "Resuming project after lost Pi worker."
+        if reason:
+            note = f"{note} {reason.strip()}"
+        current["last_report"] = _truncate(note, 1200)
+
+    project = _update_project(project_id, mutator)
+    if project:
+        _ensure_worker(project_id)
+    return project
+
+
 def _normalize_plan_items(raw_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     normalized: List[Dict[str, Any]] = []
     previous_beads_id = None
@@ -291,15 +330,15 @@ def _update_beads_state(beads_id: Optional[str], state: str) -> None:
     if not beads_id:
         return
     status_map = {
-        STATE_PENDING: "todo",
-        STATE_PLANNING: "todo",
+        STATE_PENDING: "open",
+        STATE_PLANNING: "open",
         STATE_RUNNING: "in_progress",
         STATE_BLOCKED: "blocked",
         STATE_COMPLETE: "closed",
         STATE_FAILED: "blocked",
         STATE_CANCELLED: "closed",
     }
-    _bd(["update", beads_id, "--status", status_map.get(state, "todo")])
+    _bd(["update", beads_id, "--status", status_map.get(state, "open")])
 
 
 def _append_beads_comment(beads_id: Optional[str], comment: str) -> None:
@@ -560,6 +599,12 @@ Rules:
 - Do not write files in /workspace root or parent directories.
 - Prefer direct file edits and normal shell commands inside this directory.
 - Keep changes focused to the requested step.
+- Keep all commands non-interactive and bounded in time.
+- Do not leave dev servers, file watchers, or other long-running foreground processes running.
+- Prefer one-shot verification commands like build, test, lint, or short smoke checks.
+- If the user requested Bun, prefer Bun commands and Bun lockfiles. Do not introduce npm/yarn/pnpm lockfiles unless absolutely necessary.
+- If this step establishes or finalizes an application, include the missing build/run packaging files needed for repeatable execution, such as package scripts and a Dockerfile, unless the project clearly should not have them.
+- Reuse and refine the files already present in the project directory instead of re-initializing the project from scratch.
 
 Project title: {project['title']}
 Project description:
@@ -895,6 +940,7 @@ def pi_project_start(
 
 def pi_project_status(project_id: str = "", task_id: str = None) -> str:
     if project_id:
+        _resume_stale_project(project_id)
         project = _get_project(project_id)
         if not project:
             return json.dumps({"success": False, "error": f"Project not found: {project_id}"})
@@ -929,6 +975,8 @@ def pi_project_comment(project_id: str, comment: str, task_id: str = None) -> st
     text = str(comment or "").strip()
     if not text:
         return json.dumps({"success": False, "error": "Comment cannot be empty"})
+
+    _resume_stale_project(project_id, reason="Resumed due to new user feedback.")
 
     def mutator(project: Dict[str, Any]) -> None:
         comments = project.setdefault("comments", [])

@@ -48,7 +48,7 @@ RUN python -m pip install /opt/src/huggingface_hub[hf_xet]
 
 COPY --from=beads-builder /out/bd /usr/local/bin/bd
 
-RUN mkdir -p /etc/hermes-bootstrap /root/.hermes /workspace
+RUN mkdir -p /etc/hermes-bootstrap /workspace
 
 COPY Hermes/config.yaml /etc/hermes-bootstrap/config.yaml
 COPY Hermes/entrypoint.sh /usr/local/bin/hermes-entrypoint

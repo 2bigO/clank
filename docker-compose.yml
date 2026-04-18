@@ -147,8 +147,11 @@ services:
       - BEADS_DOLT_SERVER_HOST=beads
       - BEADS_DOLT_SERVER_PORT=3308
       - BEADS_DIR=/workspace/.beads
+      - DOCKER_BIN=/usr/local/bin/docker
     volumes:
       - .:/workspace
+      - ${DOCKER_BIN:-/usr/bin/docker}:/usr/local/bin/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     working_dir: /workspace
     command:
       - sleep
@@ -164,18 +167,19 @@ services:
       - beads
       - gemma-hermes
       - stt
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     stdin_open: true
     tty: true
     env_file:
       - ./Hermes/.env
     environment:
+      - HERMES_HOME=/workspace/.hermes
       - BEADS_DOLT_SHARED_SERVER=1
       - BEADS_DOLT_SERVER_HOST=beads
       - BEADS_DOLT_SERVER_PORT=3308
       - BEADS_DIR=/workspace/host/.beads
     volumes:
       - ./Hermes/config.yaml:/etc/hermes-bootstrap/config.yaml:ro
-      - hermes-home:/root/.hermes
       - ./Hermes/workspace:/workspace
       - .:/workspace/host
       - ${MODEL_ROOT:?set MODEL_ROOT in .env}:/models

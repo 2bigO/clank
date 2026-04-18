@@ -51,6 +51,8 @@ _PROJECT_STATE_FILE = Path(
     os.getenv("PI_PROJECT_STATE_FILE", "/workspace/.hermes/pi-projects.json")
 )
 _MAX_PI_ATTEMPTS = int(os.getenv("PI_PROJECT_MAX_ATTEMPTS", "3"))
+_ANIMATION_ROOT = Path(os.getenv("PI_PROJECT_ANIMATION_ROOT", "/workspace/animations"))
+_MANIM_FONT = os.getenv("PI_PROJECT_MANIM_FONT", "DejaVu Sans Mono")
 
 
 def _now() -> float:
@@ -86,6 +88,11 @@ def _truncate(text: str, limit: int = 1200) -> str:
     return text[: limit - 3].rstrip() + "..."
 
 
+def _slugify(value: str) -> str:
+    tokens = re.findall(r"[A-Za-z0-9]+", value or "")
+    return "-".join(token.lower() for token in tokens) or "item"
+
+
 def _project_dir_for_title(title: str) -> Path:
     return _PROJECT_ROOT / _sanitize_project_dir(title)
 
@@ -114,6 +121,7 @@ def _normalize_plan_items(raw_items: List[Dict[str, Any]]) -> List[Dict[str, Any
                 "started_at": raw.get("started_at"),
                 "completed_at": raw.get("completed_at"),
                 "last_output": raw.get("last_output", ""),
+                "architecture": raw.get("architecture") or {},
             }
         )
         previous_beads_id = normalized[-1]["beads_id"]
@@ -299,6 +307,179 @@ def _append_beads_comment(beads_id: Optional[str], comment: str) -> None:
         _bd(["comment", beads_id, comment])
 
 
+def _safe_py_string(value: str) -> str:
+    return json.dumps(str(value or ""))
+
+
+def _strip_architecture_block(output: str) -> str:
+    return re.sub(
+        r"ARCHITECTURE_REPORT_JSON\s*```json\s*\{.*?\}\s*```",
+        "",
+        output or "",
+        flags=re.DOTALL,
+    ).strip()
+
+
+def _extract_architecture_report(
+    output: str,
+    project: Dict[str, Any],
+    item: Dict[str, Any],
+) -> Dict[str, Any]:
+    report = {
+        "headline": item.get("title", "Architecture update"),
+        "summary": f"Completed {item.get('title', 'the step')} for {project.get('title', 'the project')}.",
+        "decisions": [item.get("content", "").strip()] if item.get("content") else [],
+        "components": [Path(project.get("project_dir", "")).name],
+        "relationships": [],
+        "user_summary": f"{item.get('title', 'Step')} completed.",
+    }
+    match = re.search(
+        r"ARCHITECTURE_REPORT_JSON\s*```json\s*(\{.*?\})\s*```",
+        output or "",
+        flags=re.DOTALL,
+    )
+    if not match:
+        return report
+    try:
+        parsed = json.loads(match.group(1))
+    except json.JSONDecodeError:
+        return report
+    if not isinstance(parsed, dict):
+        return report
+    for key in ("headline", "summary", "user_summary"):
+        if parsed.get(key):
+            report[key] = _truncate(str(parsed[key]), 600)
+    for key in ("decisions", "components", "relationships"):
+        value = parsed.get(key)
+        if isinstance(value, list):
+            report[key] = [_truncate(str(entry), 160) for entry in value if str(entry).strip()]
+    return report
+
+
+def _render_architecture_animation(
+    project: Dict[str, Any],
+    item: Dict[str, Any],
+    architecture: Dict[str, Any],
+) -> Dict[str, Any]:
+    animation_dir = (
+        _ANIMATION_ROOT
+        / _sanitize_project_dir(project.get("title", "Project"))
+        / _slugify(item.get("id", item.get("title", "step")))
+    )
+    animation_dir.mkdir(parents=True, exist_ok=True)
+
+    components = [str(component) for component in (architecture.get("components") or [])[:4]]
+    if not components:
+        components = [item.get("title", "Step")]
+    relationships = [str(rel) for rel in (architecture.get("relationships") or [])[:3]]
+
+    script_path = animation_dir / "script.py"
+    plan_path = animation_dir / "plan.md"
+    final_path = animation_dir / "final.mp4"
+
+    plan_text = "\n".join(
+        [
+            f"# {architecture.get('headline', item.get('title', 'Architecture update'))}",
+            "",
+            f"- Project: {project.get('title', '')}",
+            f"- Step: {item.get('title', '')}",
+            f"- Summary: {architecture.get('summary', '')}",
+            f"- Components: {', '.join(components)}",
+            f"- Relationships: {', '.join(relationships) if relationships else 'none'}",
+        ]
+    )
+    plan_path.write_text(plan_text, encoding="utf-8")
+
+    script = f"""from manim import *
+
+BG = "#0D1117"
+PRIMARY = "#58C4DD"
+SECONDARY = "#83C167"
+ACCENT = "#FFD166"
+TEXT = "#E6EDF3"
+MUTED = "#8B949E"
+FONT = {_safe_py_string(_MANIM_FONT)}
+HEADLINE = {_safe_py_string(architecture.get("headline", item.get("title", "Architecture update")))}
+SUMMARY = {_safe_py_string(architecture.get("user_summary", architecture.get("summary", "")))}
+COMPONENTS = {json.dumps(components)}
+RELATIONSHIPS = {json.dumps(relationships)}
+
+class ArchitectureUpdate(Scene):
+    def construct(self):
+        self.camera.background_color = BG
+        title = Text(HEADLINE, font=FONT, font_size=32, color=PRIMARY)
+        title.to_edge(UP, buff=0.5)
+        summary = Text(SUMMARY, font=FONT, font_size=20, color=TEXT, line_spacing=0.8)
+        summary.next_to(title, DOWN, buff=0.35)
+
+        boxes = VGroup()
+        for label in COMPONENTS:
+            box = RoundedRectangle(corner_radius=0.15, width=3.0, height=0.95, stroke_color=SECONDARY, fill_color=SECONDARY, fill_opacity=0.12)
+            text = Text(label, font=FONT, font_size=20, color=TEXT)
+            group = VGroup(box, text)
+            text.move_to(box.get_center())
+            boxes.add(group)
+        boxes.arrange(RIGHT, buff=0.5)
+        boxes.move_to(ORIGIN + DOWN * 0.2)
+
+        arrows = VGroup()
+        if len(boxes) > 1:
+            for left, right in zip(boxes[:-1], boxes[1:]):
+                arrows.add(Arrow(left.get_right(), right.get_left(), buff=0.12, stroke_color=ACCENT))
+
+        rel_text = VGroup()
+        for rel in RELATIONSHIPS:
+            rel_text.add(Text(rel, font=FONT, font_size=18, color=MUTED))
+        if rel_text:
+            rel_text.arrange(DOWN, aligned_edge=LEFT, buff=0.2)
+            rel_text.next_to(boxes, DOWN, buff=0.5)
+
+        self.play(FadeIn(title, shift=UP * 0.2), run_time=0.8)
+        self.play(FadeIn(summary, shift=UP * 0.1), run_time=0.8)
+        self.play(LaggedStart(*[FadeIn(box, shift=UP * 0.15) for box in boxes], lag_ratio=0.18), run_time=1.4)
+        if arrows:
+            self.play(LaggedStart(*[GrowArrow(arrow) for arrow in arrows], lag_ratio=0.15), run_time=1.0)
+        if rel_text:
+            self.play(FadeIn(rel_text, shift=DOWN * 0.1), run_time=0.8)
+        self.wait(1.0)
+"""
+    script_path.write_text(script, encoding="utf-8")
+
+    cmd = [
+        "manim",
+        "-ql",
+        "--media_dir",
+        str(animation_dir / "media"),
+        str(script_path),
+        "ArchitectureUpdate",
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(animation_dir), timeout=300)
+    if result.returncode != 0:
+        return {
+            "video_path": "",
+            "render_error": _truncate(result.stderr or result.stdout or "Manim render failed", 800),
+            "script_path": str(script_path),
+            "plan_path": str(plan_path),
+        }
+
+    candidates = sorted((animation_dir / "media").rglob("ArchitectureUpdate.mp4"))
+    if not candidates:
+        return {
+            "video_path": "",
+            "render_error": "Manim render succeeded but output file was not found.",
+            "script_path": str(script_path),
+            "plan_path": str(plan_path),
+        }
+    source = candidates[-1]
+    subprocess.run(["cp", str(source), str(final_path)], check=True)
+    return {
+        "video_path": str(final_path),
+        "render_error": "",
+        "script_path": str(script_path),
+        "plan_path": str(plan_path),
+    }
+
+
 def _format_project_summary(project: Dict[str, Any]) -> str:
     state_icons = {
         STATE_PENDING: "⏳",
@@ -347,6 +528,13 @@ def _format_project_summary(project: Dict[str, Any]) -> str:
             text = comment["text"] if isinstance(comment, dict) else str(comment)
             lines.append(f"- {_truncate(text, 160)}")
 
+    latest_architecture = project.get("latest_architecture") or {}
+    if latest_architecture.get("summary"):
+        lines.append("")
+        lines.append(f"Architecture: {_truncate(str(latest_architecture['summary']), 220)}")
+        if latest_architecture.get("video_path"):
+            lines.append(f"Animation: `{latest_architecture['video_path']}`")
+
     error = str(project.get("error") or "").strip()
     if error:
         lines.append("")
@@ -383,7 +571,23 @@ Step details:
 """.strip()
     if comment_block:
         prompt += f"\n\nLatest user feedback:\n{comment_block}"
-    prompt += "\n\nWhen done, briefly summarize what you changed and any verification you ran."
+    prompt += """
+
+When done, briefly summarize what you changed and any verification you ran.
+
+Then append exactly one fenced JSON block using this marker:
+ARCHITECTURE_REPORT_JSON
+```json
+{
+  "headline": "short title",
+  "summary": "2-4 sentence explanation of the implemented architecture or design change for this step",
+  "decisions": ["decision 1", "decision 2"],
+  "components": ["component or file", "component or file"],
+  "relationships": ["A -> B", "B -> C"],
+  "user_summary": "short user-facing summary of why this step matters"
+}
+```
+""".rstrip()
     return prompt
 
 
@@ -471,7 +675,13 @@ def _is_retryable_pi_error(result: Dict[str, Any]) -> bool:
     return any(marker in combined for marker in retry_markers)
 
 
-def _set_item_state(project_id: str, item_id: str, state: str, last_output: str = "") -> Optional[Dict[str, Any]]:
+def _set_item_state(
+    project_id: str,
+    item_id: str,
+    state: str,
+    last_output: str = "",
+    architecture: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
     def mutator(project: Dict[str, Any]) -> None:
         for item in project.get("plan_items", []):
             if item.get("id") != item_id:
@@ -484,10 +694,15 @@ def _set_item_state(project_id: str, item_id: str, state: str, last_output: str 
                 item["completed_at"] = _now()
             if last_output:
                 item["last_output"] = _truncate(last_output, 1200)
+            if architecture:
+                item["architecture"] = architecture
+                project["latest_architecture"] = architecture
             if item.get("beads_id"):
                 _update_beads_state(item["beads_id"], state)
                 if last_output:
                     _append_beads_comment(item["beads_id"], _truncate(last_output, 1200))
+                if architecture and architecture.get("summary"):
+                    _append_beads_comment(item["beads_id"], _truncate(str(architecture["summary"]), 400))
             break
 
     return _update_project(project_id, mutator)
@@ -565,10 +780,33 @@ def _execute_project(project_id: str) -> None:
             )
             return
 
-        _set_item_state(project_id, item["id"], STATE_COMPLETE, result.get("output") or "Completed")
-        _set_project_state(project_id, STATE_RUNNING, report=result.get("output") or f"Completed: {item['title']}")
+        cleaned_output = _strip_architecture_block(result.get("output") or "Completed")
+        architecture = _extract_architecture_report(result.get("output") or "", fresh, item)
+        render_info = _render_architecture_animation(fresh, item, architecture)
+        architecture["video_path"] = render_info.get("video_path", "")
+        architecture["script_path"] = render_info.get("script_path", "")
+        architecture["plan_path"] = render_info.get("plan_path", "")
+        architecture["render_error"] = render_info.get("render_error", "")
+        _set_item_state(
+            project_id,
+            item["id"],
+            STATE_COMPLETE,
+            cleaned_output or "Completed",
+            architecture=architecture,
+        )
+        report = architecture.get("user_summary") or cleaned_output or f"Completed: {item['title']}"
+        if architecture.get("video_path"):
+            report = f"{report}\nMEDIA:{architecture['video_path']}"
+        elif architecture.get("render_error"):
+            report = f"{report}\nAnimation render error: {architecture['render_error']}"
+        _set_project_state(project_id, STATE_RUNNING, report=report)
 
-    _set_project_state(project_id, STATE_COMPLETE, report="All plan items completed.")
+    final_project = _get_project(project_id) or {}
+    latest_architecture = final_project.get("latest_architecture") or {}
+    final_report = latest_architecture.get("user_summary") or "All plan items completed."
+    if latest_architecture.get("video_path"):
+        final_report = f"{final_report}\nMEDIA:{latest_architecture['video_path']}"
+    _set_project_state(project_id, STATE_COMPLETE, report=final_report)
 
 
 def _ensure_worker(project_id: str) -> None:
@@ -634,6 +872,7 @@ def pi_project_start(
         "progress_pct": 0.0,
         "error": "",
         "last_report": "",
+        "latest_architecture": {},
         "cancel_requested": False,
         "epic_id": None,
     }
@@ -667,6 +906,7 @@ def pi_project_status(project_id: str = "", task_id: str = None) -> str:
                 "progress_pct": project.get("progress_pct", 0.0),
                 "project_dir": project.get("project_dir", ""),
                 "plan_items": project.get("plan_items", []),
+                "latest_architecture": project.get("latest_architecture", {}),
                 "summary": _format_project_summary(project),
             }
         )

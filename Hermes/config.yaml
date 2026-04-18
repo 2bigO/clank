@@ -31,6 +31,7 @@ telegram:
 skills:
   external_dirs:
     - /workspace/host/Hermes/skills
+    - /opt/src/hermes-agent/skills
 
 custom_providers:
   - name: Local Gemma E4B

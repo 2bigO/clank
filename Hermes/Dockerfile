@@ -25,9 +25,27 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONUNBUFFERED=1 \
     HERMES_HOME=/root/.hermes
 
+ARG DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-      bash build-essential ca-certificates curl docker.io git rsync \
+      bash \
+      build-essential \
+      ca-certificates \
+      curl \
+      docker.io \
+      dvisvgm \
+      ffmpeg \
+      fonts-dejavu-core \
+      ghostscript \
+      git \
+      libcairo2-dev \
+      libpango1.0-dev \
+      pkg-config \
+      rsync \
+      texlive-fonts-recommended \
+      texlive-latex-extra \
+      texlive-plain-generic \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/src
@@ -40,8 +58,9 @@ RUN --mount=type=bind,source=repos/huggingface_hub,target=/mnt/src/huggingface_h
     mkdir -p /opt/src/huggingface_hub \
     && rsync -a --delete /mnt/src/huggingface_hub/ /opt/src/huggingface_hub/
 
-RUN python -m pip install --upgrade pip setuptools wheel \
-    && python -m pip install /opt/src/hermes-agent[cli,pty] python-telegram-bot requests
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --upgrade pip setuptools wheel \
+    && python -m pip install /opt/src/hermes-agent[cli,pty] python-telegram-bot requests manim
 
 COPY tools/ /opt/src/tools/
 RUN python -m pip install /opt/src/huggingface_hub[hf_xet]

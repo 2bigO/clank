@@ -69,6 +69,7 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
 - normal chat -> `gemma-hermes`
 - voice -> Hermes STT adapter -> `stt` -> transcript -> `gemma-hermes`
 - coding -> Hermes skill `pi-coder` -> `pi_project_*` tools -> background Pi work in shared `/workspace`
+- completed Pi steps can emit architecture reports that Hermes renders into Manim artifacts under `/workspace/animations/...`
 - direct Pi delegation wrapper still lives at `/workspace/host/scripts/pi-delegate`
 - Pi uses `/workspace` for scratch projects and `/workspace/host` for live repo work
 
@@ -80,9 +81,10 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
   - Hermes secrets and gateway env
   - `HF_TOKEN` for authenticated HuggingFace downloads
   - `MODEL_ROOT=/models` inside Hermes containers
+- Hermes containers run with `HOME=/workspace` and `XDG_STATE_HOME=/workspace/.local/state`
 - `Hermes/config.yaml`
   - Hermes model/STT config
-  - external skills dir: `/workspace/host/Hermes/skills`
+  - external skills dirs: `/workspace/host/Hermes/skills`, `/opt/src/hermes-agent/skills`
   - `terminal.cwd: /workspace`
   - streaming enabled for Telegram edits
   - `huggingface.token` / `huggingface.model_root` read from env
@@ -114,6 +116,7 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
 - `tools/`
   - external tool packages that live outside `hermes-agent`
   - `tools/HuggingFace/` is copied into the Hermes image and imported dynamically
+  - `tools/GatewaySmoke/telegram_ux_smoke.py` runs a fake-Telegram UX harness and logs send/edit content for inspection
   - paired source repo lives in `repos/huggingface_hub/`
 
 ## Persistence
@@ -123,6 +126,8 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
 - `workspace/`
   - shared Hermes/Pi scratch area mounted as `/workspace`
   - includes Hermes state under `/workspace/.hermes`
+- `workspace/.local/state/hermes/gateway-locks/`
+  - machine-local gateway token locks for Telegram and other platform adapters
 
 ## Build Pattern
 
@@ -152,6 +157,7 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
 - Beads CLI in Pi: `docker compose exec pi bd ...`
 - Beads CLI in Hermes: `docker compose exec hermes bd ...`
 - headless Pi: `./scripts/pi-delegate "task"`
+- Telegram UX smoke harness: `./scripts/telegram-ux-smoke "Use Pi to ..."` logs JSONL to `/workspace/.hermes/logs/telegram-ux.jsonl`
 - Hermes CLI: `docker compose exec hermes hermes`
 - Hermes API: `http://127.0.0.1:${HERMES_API_PORT}/v1`
 

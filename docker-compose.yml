@@ -178,6 +178,8 @@ services:
     env_file:
       - ./Hermes/.env
     environment:
+      - HOME=/workspace
+      - XDG_STATE_HOME=/workspace/.local/state
       - HERMES_HOME=/workspace/.hermes
       - BEADS_DOLT_SHARED_SERVER=1
       - BEADS_DOLT_SERVER_HOST=beads
@@ -208,6 +210,8 @@ services:
     env_file:
       - ./Hermes/.env
     environment:
+      - HOME=/workspace
+      - XDG_STATE_HOME=/workspace/.local/state
       - HERMES_HOME=/workspace/.hermes
       - BEADS_DOLT_SHARED_SERVER=1
       - BEADS_DOLT_SERVER_HOST=beads

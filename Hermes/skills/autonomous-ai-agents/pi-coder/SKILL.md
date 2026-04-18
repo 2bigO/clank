@@ -22,6 +22,7 @@ metadata:
 - **Beads** persists: epic + child tasks for durable state across restarts.
 - **Gateway tracker**: one editable Telegram message with checklist + progress bar.
 - **Shared scratch**: Hermes and Pi both use `/workspace`; the live repo remains at `/workspace/host`.
+- **Architecture animation**: each completed Pi step should yield a compact architecture report and a short Manim video Hermes can send to the user.
 
 ## Procedure
 
@@ -59,6 +60,7 @@ The tool returns a `project_id`, starts a background worker, and uses `/workspac
 - delegating each plan item to Pi in that cwd
 - updating Beads state
 - persisting project state for resume after restart
+- capturing architecture summaries and rendering per-step animation artifacts
 
 ### 4. Handle follow-ups
 
@@ -72,6 +74,11 @@ After the project completes:
 - Inspect the results under `/workspace/code/<ProjectName>/`
 - Run direct verification when needed from that same directory
 - Report the final outcome using the final tracker state
+
+When project status exposes a completed-step architecture animation:
+- send a short textual summary of the architectural change
+- send the rendered video with `MEDIA:/workspace/.../final.mp4`
+- if a richer or revised animation is needed, use the `manim-video` skill to regenerate it
 
 ## Example Flow
 
@@ -99,6 +106,7 @@ User: "use pi to create a hello world web server using Bun"
 - Hermes should not write the project files itself during normal execution.
 - Keep plan items specific and atomic so the background worker can make clear progress.
 - The project folder name should be PascalCase with no spaces (e.g. `HelloWorld`, `ApiGateway`).
+- Pi should end each task with a machine-readable architecture report that Hermes can present back to the user.
 
 ## Verification
 

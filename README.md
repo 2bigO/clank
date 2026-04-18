@@ -12,10 +12,14 @@ Portable Strix Halo local-agent stack.
 
 ## Workspace
 
-- Repo root is the workspace in containers: `/workspace`
-- Hermes default cwd: `/workspace`
+- Hermes default cwd: `/workspace` (isolated scratch workspace)
+- Hermes sees the live repo at `/workspace/host`
 - Pi default cwd: `/workspace`
 - Local Hermes skills: `Hermes/skills/`
+
+Pi still sees the live repo directly at `/workspace`, so when delegating from Hermes to Pi:
+
+- Hermes path `/workspace/host/...` maps to Pi path `/workspace/...`
 
 ## Quickstart
 

@@ -6,9 +6,10 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
 
 ## Workspace
 
-- Repo root is the runtime workspace: `/workspace`
-- Hermes cwd: `/workspace`
-- Pi cwd: `/workspace`
+- Hermes scratch workspace: `/workspace`
+- Hermes live repo mount: `/workspace/host`
+- Pi live repo workspace: `/workspace`
+- Hermes path `/workspace/host/...` maps to Pi path `/workspace/...`
 - `Hermes/root/` is scratch/output, not the canonical workspace
 
 ## Services
@@ -17,7 +18,8 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
   - interactive Hermes container
   - image: `Hermes/Dockerfile`
   - mounts:
-    - repo root -> `/workspace` rw
+    - `Hermes/workspace` -> `/workspace` rw
+    - repo root -> `/workspace/host` rw
     - `hermes-home` -> `/root/.hermes`
     - `Hermes/config.yaml` -> `/etc/hermes-bootstrap/config.yaml` ro
     - `${DOCKER_BIN}` -> `/usr/local/bin/docker` ro
@@ -58,7 +60,8 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
 - Telegram -> `hermes-api` -> Hermes loop
 - normal chat -> `gemma-hermes`
 - voice -> Hermes STT adapter -> `stt` -> transcript -> `gemma-hermes`
-- coding -> Hermes skill `pi-coder` -> `/workspace/scripts/pi-delegate` -> `docker exec pi ...` -> Pi CLI -> `qwopus-pi`
+- coding -> Hermes skill `pi-coder` -> `/workspace/host/scripts/pi-delegate` -> `docker exec pi ...` -> Pi CLI -> `qwopus-pi`
+- Hermes delegates through `/workspace/host/scripts/pi-delegate`
 - Pi edits repo files through `/workspace`
 
 ## Config
@@ -71,7 +74,7 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
   - `MODEL_ROOT=/models` inside Hermes containers
 - `Hermes/config.yaml`
   - Hermes model/STT config
-  - external skills dir: `/workspace/Hermes/skills`
+  - external skills dir: `/workspace/host/Hermes/skills`
   - `terminal.cwd: /workspace`
   - streaming enabled for Telegram edits
   - `huggingface.token` / `huggingface.model_root` read from env
@@ -106,6 +109,8 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
   - `/root/.hermes`
 - `pi-agent-home`
 - models live outside repo under `${MODEL_ROOT}`, mounted to `/models`
+- `Hermes/workspace/`
+  - Hermes-only scratch area mounted as `/workspace`
 
 ## Build Pattern
 
@@ -120,6 +125,8 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
 - Hermes needs `stt` for Telegram voice
 - Hermes delegates coding to Pi via Docker CLI wrapper, not Pi RPC
 - Pi is the preferred writer for repo/system changes; Hermes orchestrates and reports
+- Hermes default file/terminal damage surface is its isolated `/workspace` scratch area
+- Hermes must target `/workspace/host/...` explicitly to touch the live repo
 - Pi runs as the host UID/GID via docker-compose `user:` so files written in `/workspace` are host-owned
 - HuggingFace downloads land in `/models` and are chowned back to the host UID/GID by the tool
 - Telegram download progress tracking is gateway-owned: the gateway edits one tracker message every ~5s until completion

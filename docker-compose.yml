@@ -146,7 +146,8 @@ services:
     volumes:
       - ./Hermes/config.yaml:/etc/hermes-bootstrap/config.yaml:ro
       - hermes-home:/root/.hermes
-      - .:/workspace
+      - ./Hermes/workspace:/workspace
+      - .:/workspace/host
       - ${MODEL_ROOT:?set MODEL_ROOT in .env}:/models
       - ${DOCKER_BIN:-/usr/bin/docker}:/usr/local/bin/docker:ro
       - /var/run/docker.sock:/var/run/docker.sock
@@ -171,7 +172,8 @@ services:
     volumes:
       - ./Hermes/config.yaml:/etc/hermes-bootstrap/config.yaml:ro
       - hermes-home:/root/.hermes
-      - .:/workspace
+      - ./Hermes/workspace:/workspace
+      - .:/workspace/host
       - ${MODEL_ROOT:?set MODEL_ROOT in .env}:/models
       - ${DOCKER_BIN:-/usr/bin/docker}:/usr/local/bin/docker:ro
       - /var/run/docker.sock:/var/run/docker.sock

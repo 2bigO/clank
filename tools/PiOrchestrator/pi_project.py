@@ -83,15 +83,20 @@ def _bd_json(cmd_parts: List[str], project_dir: Optional[str] = None) -> Any:
         return None
 
 
-def _ensure_beads_project(project_id: str, title: str, description: str = "") -> bool:
-    """Create a Beads epic for the project if it doesn't exist."""
+def _ensure_beads_project(project_id: str, title: str, description: str = "") -> Optional[str]:
+    """Create a Beads epic for the project if it doesn't exist. Returns the epic ID."""
     existing = _bd_json(["list", "--json"])
     if existing:
         for item in existing:
             if item.get("title") == f"[project:{project_id}] {title}":
-                return True
-    _bd(["create", "--title", f"[project:{project_id}] {title}", "--type", "epic"])
-    return True
+                return item.get("id")
+    out = _bd(["create", "--title", f"[project:{project_id}] {title}", "--type", "epic", "--json"])
+    if out:
+        try:
+            return json.loads(out).get("id")
+        except json.JSONDecodeError:
+            pass
+    return None
 
 
 def _add_beads_task(
@@ -101,21 +106,19 @@ def _add_beads_task(
     task_id: Optional[str] = None,
 ) -> Optional[str]:
     """Add a child task to the project epic in Beads."""
-    tid = task_id or str(uuid.uuid4())[:8]
-    _bd(
-        [
-            "create",
-            "--title",
-            title,
-            "--type",
-            "task",
-            "--id",
-            tid,
-        ]
-    )
-    if depends_on:
-        _bd(["link", "--from", tid, "--to", depends_on, "--type", "depends_on"])
-    return tid
+    out = _bd(["create", "--title", title, "--type", "task", "--json"])
+    if not out:
+        return None
+    try:
+        created = json.loads(out)
+        tid = created.get("id")
+        if not tid:
+            return None
+        if depends_on:
+            _bd(["link", depends_on, tid, "--type", "blocks"])
+        return tid
+    except json.JSONDecodeError:
+        return None
 
 
 def _update_beads_task_state(task_id: str, state: str) -> None:
@@ -123,19 +126,19 @@ def _update_beads_task_state(task_id: str, state: str) -> None:
     status_map = {
         STATE_PENDING: "todo",
         STATE_PLANNING: "todo",
-        STATE_RUNNING: "doing",
+        STATE_RUNNING: "in_progress",
         STATE_BLOCKED: "blocked",
-        STATE_COMPLETE: "done",
+        STATE_COMPLETE: "closed",
         STATE_FAILED: "blocked",
         STATE_CANCELLED: "cancelled",
     }
     beads_status = status_map.get(state, "todo")
-    _bd(["update", "--id", task_id, "--status", beads_status])
+    _bd(["update", task_id, "--status", beads_status])
 
 
 def _add_beads_comment(task_id: str, comment: str) -> None:
     """Add a comment to a Beads task."""
-    _bd(["comment", "--id", task_id, "--body", comment])
+    _bd(["comment", task_id, comment])
 
 
 # ---------------------------------------------------------------------------
@@ -171,20 +174,19 @@ def _create_project(
     with _projects_lock:
         _projects[project_id] = project
 
-    _ensure_beads_project(project_id, title, description)
+    epic_id = _ensure_beads_project(project_id, title, description)
 
-    if plan_items:
-        prev_tid = None
+    if plan_items and epic_id:
         for item in plan_items:
             tid = _add_beads_task(
                 project_id,
                 item.get("title", item.get("content", "Untitled task")),
-                depends_on=prev_tid,
+                depends_on=None,
                 task_id=item.get("id"),
             )
             if tid:
                 item["beads_id"] = tid
-            prev_tid = tid
+                _bd(["link", epic_id, tid, "--type", "parent-child"])
 
     return project
 

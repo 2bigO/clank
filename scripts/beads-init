@@ -30,5 +30,5 @@ dolt:
 EOF
 chmod 700 "$beads_dir"
 
-docker compose exec -T pi bash -lc 'cd /workspace && bd ready --json >/dev/null'
+docker compose exec -T pi bash -lc 'cd /workspace/host && bd ready --json >/dev/null'
 printf 'Beads initialized for %s using database %s\n' "$repo_root" "$db_name"

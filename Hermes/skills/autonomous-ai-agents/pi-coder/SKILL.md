@@ -17,10 +17,11 @@ metadata:
 
 ## Architecture
 
-- **Hermes** orchestrates: creates the project, delegates steps, tracks progress.
-- **Pi** executes: writes code, builds, tests inside the project folder.
+- **Hermes** orchestrates: creates the project, tracks progress, and routes follow-up feedback.
+- **Pi** executes: writes code, builds, and tests inside the shared workspace project folder.
 - **Beads** persists: epic + child tasks for durable state across restarts.
 - **Gateway tracker**: one editable Telegram message with checklist + progress bar.
+- **Shared scratch**: Hermes and Pi both use `/workspace`; the live repo remains at `/workspace/host`.
 
 ## Procedure
 
@@ -45,59 +46,32 @@ Call the `pi_project_start` tool with:
 }
 ```
 
-The tool returns a `project_id` and a tracker-ready summary. The gateway will automatically start polling for updates.
+The tool returns a `project_id`, starts a background worker, and uses `/workspace/code/<ProjectName>` as the project root automatically. The gateway will poll for updates.
 
-### 3. Create the project folder
+### 3. Let the orchestrator run
 
-Create a folder under `/workspace/code/` named after the project (PascalCase, e.g. `HelloWorld`):
+- Do **not** create the folder yourself.
+- Do **not** use terminal to call `pi-delegate` manually for normal project execution.
+- Do **not** write project files from Hermes.
 
-```bash
-mkdir -p /workspace/code/HelloWorld
-```
+`pi_project_start` owns:
+- creating `/workspace/code/<ProjectName>`
+- delegating each plan item to Pi in that cwd
+- updating Beads state
+- persisting project state for resume after restart
 
-From Pi's perspective (same mount), this path is `/workspace/code/HelloWorld`.
+### 4. Handle follow-ups
 
-### 4. Delegate steps to Pi
+- If the user sends feedback while the project is running, call `pi_project_comment`.
+- If the user explicitly asks for status, call `pi_project_status`.
+- If the user wants to stop the run, call `pi_project_cancel`.
 
-For each plan item, delegate to Pi using `pi-delegate` with `--cwd /workspace/code/<ProjectName>`:
+### 5. Verify and report
 
-```bash
-cat <<'EOF' | /workspace/host/scripts/pi-delegate --cwd /workspace/code/HelloWorld
-<specific task for this step>
-EOF
-```
-
-**First step is always: create a Dockerfile** for the project's runtime environment.
-
-For example, for a Bun project:
-```
-Create a Dockerfile that:
-- Uses oven/bun as the base image
-- Copies the project files
-- Installs dependencies
-- Exposes the needed port
-- Has a CMD to run the application
-```
-
-Then subsequent steps:
-```
-Create index.ts with a Bun.serve() HTTP server that returns "Hello World"
-```
-
-```
-Create package.json with bun as the package manager
-```
-
-### 5. Update project state
-
-After each step completes, call `pi_project_status` with the `project_id` to get the current summary. The gateway tracker will reflect progress.
-
-### 6. Verify and report
-
-After all steps:
-- Inspect the created files under `/workspace/code/<ProjectName>/`
-- Optionally build/test: `docker build -t <name> /workspace/code/<ProjectName>`
-- Report the result to the user with the final tracker summary
+After the project completes:
+- Inspect the results under `/workspace/code/<ProjectName>/`
+- Run direct verification when needed from that same directory
+- Report the final outcome using the final tracker state
 
 ## Example Flow
 
@@ -113,51 +87,21 @@ User: "use pi to create a hello world web server using Bun"
        {"title": "Verify build", "content": "Build the Docker image and verify it starts correctly"}
      ]
 
-2. Create folder: `mkdir -p /workspace/code/HelloWorld`
+2. Wait for the orchestrator to run the plan in `/workspace/code/HelloWorld`.
 
-3. Delegate step 1 to Pi:
-   ```bash
-   cat <<'EOF' | /workspace/host/scripts/pi-delegate --cwd /workspace/code/HelloWorld
-   Create a Dockerfile for a Bun-based web server project. Use oven/bun as the base image. The Dockerfile should:
-   - Use oven/bun:1 as the base
-   - Set working directory to /app
-   - Copy package.json and install dependencies
-   - Copy all source files
-   - Expose port 3000
-   - CMD to run index.ts with bun
-   EOF
-   ```
+3. If the user says "also add a health endpoint", call `pi_project_comment` with that feedback.
 
-4. Delegate step 2 to Pi:
-   ```bash
-   cat <<'EOF' | /workspace/host/scripts/pi-delegate --cwd /workspace/code/HelloWorld
-   Create index.ts with a Bun HTTP server that listens on port 3000 and returns "Hello World" for all requests.
-   EOF
-   ```
-
-5. Delegate step 3 to Pi:
-   ```bash
-   cat <<'EOF' | /workspace/host/scripts/pi-delegate --cwd /workspace/code/HelloWorld
-   Create a package.json for this Bun project with name "hello-world-bun", version "1.0.0", and main "index.ts".
-   EOF
-   ```
-
-6. Verify: check files exist, optionally build with docker.
-
-7. Report result to user.
+4. Verify the final files and report the result.
 
 ## Constraints
 
-- **Always create a project folder** under `/workspace/code/` — never write files in the workspace root.
-- **Always start with a Dockerfile** — the project should be self-contained and buildable.
-- **Pi's cwd** for delegation is `/workspace/code/<ProjectName>` (same path from both Hermes and Pi perspectives).
-- **Hermes inspects** results at `/workspace/code/<ProjectName>/`.
-- Keep delegated tasks **specific and atomic** — one file or one concern per delegation.
-- The project folder name should be **PascalCase** with no spaces (e.g. `HelloWorld`, `ApiGateway`).
+- The project root is `/workspace/code/<ProjectName>` and is shared naturally by Hermes and Pi.
+- Hermes should not write the project files itself during normal execution.
+- Keep plan items specific and atomic so the background worker can make clear progress.
+- The project folder name should be PascalCase with no spaces (e.g. `HelloWorld`, `ApiGateway`).
 
 ## Verification
 
-- Check that all planned files exist under `/workspace/code/<ProjectName>/`
-- Optionally build: `docker build -t <project-name> /workspace/code/<ProjectName>`
-- Optionally run: `docker run --rm -p 3000:3000 <project-name>` and curl localhost
+- Check that the planned files exist under `/workspace/code/<ProjectName>/`
+- Optionally build or run from `/workspace/code/<ProjectName>`
 - Report the final state to the user

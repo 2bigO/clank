@@ -6,11 +6,11 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
 
 ## Workspace
 
-- Hermes scratch workspace: `/workspace`
-- Hermes live repo mount: `/workspace/host`
-- Pi live repo workspace: `/workspace`
-- Hermes path `/workspace/host/...` maps to Pi path `/workspace/...`
-- `Hermes/root/` is scratch/output, not the canonical workspace
+- Shared scratch workspace: `/workspace`
+- Live repo mount in Hermes and Pi: `/workspace/host`
+- Scratch projects live under `/workspace/code/...`
+- Use `/workspace` for ad hoc work and generated project files
+- Use `/workspace/host/...` for live repo edits, scripts, config, and source
 
 ## Services
 
@@ -18,9 +18,9 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
   - interactive Hermes container
   - image: `Hermes/Dockerfile`
   - mounts:
-    - `Hermes/workspace` -> `/workspace` rw
+    - `workspace` -> `/workspace` rw
     - repo root -> `/workspace/host` rw
-    - `hermes-home` -> `/root/.hermes`
+    - Hermes state/config lives in shared scratch `/workspace/.hermes`
     - `Hermes/config.yaml` -> `/etc/hermes-bootstrap/config.yaml` ro
     - `${DOCKER_BIN}` -> `/usr/local/bin/docker` ro
     - `/var/run/docker.sock` rw
@@ -43,9 +43,10 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
   - dedicated coding worker
   - image: `Pi/Dockerfile`
   - mounts:
-    - repo root -> `/workspace` rw
-    - Pi runtime state lives under repo-local `/workspace/.pi/`
-    - `Pi/models.json` / `Pi/settings.json` are bootstrapped into the Pi agent runtime on invocation
+    - `workspace` -> `/workspace` rw
+    - repo root -> `/workspace/host` rw
+    - Pi runtime state lives under shared scratch `/workspace/.pi/`
+    - `Pi/models.json` / `Pi/settings.json` are bootstrapped from `/workspace/host/Pi/`
   - UX: `docker compose exec pi pi`
 - `beads`
   - shared Beads / Dolt SQL runtime
@@ -67,9 +68,9 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
 - Telegram -> `hermes-api` -> Hermes loop
 - normal chat -> `gemma-hermes`
 - voice -> Hermes STT adapter -> `stt` -> transcript -> `gemma-hermes`
-- coding -> Hermes skill `pi-coder` -> `/workspace/host/scripts/pi-delegate` -> `docker exec pi ...` -> Pi CLI -> `qwopus-pi`
-- Hermes delegates through `/workspace/host/scripts/pi-delegate`
-- Pi edits repo files through `/workspace`
+- coding -> Hermes skill `pi-coder` -> `pi_project_*` tools -> background Pi work in shared `/workspace`
+- direct Pi delegation wrapper still lives at `/workspace/host/scripts/pi-delegate`
+- Pi uses `/workspace` for scratch projects and `/workspace/host` for live repo work
 
 ## Config
 
@@ -117,12 +118,11 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
 
 ## Persistence
 
-- `hermes-home`
-  - `/root/.hermes`
 - `pi-agent-home`
 - models live outside repo under `${MODEL_ROOT}`, mounted to `/models`
-- `Hermes/workspace/`
-  - Hermes-only scratch area mounted as `/workspace`
+- `workspace/`
+  - shared Hermes/Pi scratch area mounted as `/workspace`
+  - includes Hermes state under `/workspace/.hermes`
 
 ## Build Pattern
 
@@ -137,9 +137,9 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
 - Hermes needs `stt` for Telegram voice
 - Hermes delegates coding to Pi via Docker CLI wrapper, not Pi RPC
 - Pi is the preferred writer for repo/system changes; Hermes orchestrates and reports
-- Hermes default file/terminal damage surface is its isolated `/workspace` scratch area
-- Hermes must target `/workspace/host/...` explicitly to touch the live repo
-- Pi runs as the host UID/GID via docker-compose `user:` so files written in `/workspace` are host-owned
+- `/workspace` is shared scratch, not the live repo
+- both Hermes and Pi must use `/workspace/host/...` explicitly to touch the live repo
+- Pi runs as the host UID/GID via docker-compose `user:` so files written in `/workspace` or `/workspace/host` are host-owned
 - HuggingFace downloads land in `/models` and are chowned back to the host UID/GID by the tool
 - Telegram download progress tracking is gateway-owned: the gateway edits one tracker message every ~5s until completion
 

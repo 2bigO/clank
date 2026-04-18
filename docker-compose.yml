@@ -66,7 +66,7 @@ services:
     command:
       - llama-server
       - --model
-      - ${QWOPUS_MODEL_PATH:-/models/Jackrong/Qwopus3.5-27B-v3-GGUF/Qwopus3.5-27B-v3-Q6_K.gguf}
+      - ${QWOPUS_MODEL_PATH:-/models/unsloth/Qwen3.6-35B-A3B-GGUF/Qwen3.6-35B-A3B-Q8_0.gguf}
       - --alias
       - qwopus-pi
       - --gpu-layers
@@ -139,6 +139,8 @@ services:
       - beads
       - qwopus-pi
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    group_add:
+      - "${DOCKER_GID:-968}"
     stdin_open: true
     tty: true
     environment:
@@ -146,10 +148,11 @@ services:
       - BEADS_DOLT_SHARED_SERVER=1
       - BEADS_DOLT_SERVER_HOST=beads
       - BEADS_DOLT_SERVER_PORT=3308
-      - BEADS_DIR=/workspace/.beads
+      - BEADS_DIR=/workspace/host/.beads
       - DOCKER_BIN=/usr/local/bin/docker
     volumes:
-      - .:/workspace
+      - ./workspace:/workspace
+      - .:/workspace/host
       - ${DOCKER_BIN:-/usr/bin/docker}:/usr/local/bin/docker:ro
       - /var/run/docker.sock:/var/run/docker.sock
     working_dir: /workspace
@@ -168,6 +171,8 @@ services:
       - gemma-hermes
       - stt
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    group_add:
+      - "${DOCKER_GID:-968}"
     stdin_open: true
     tty: true
     env_file:
@@ -180,7 +185,7 @@ services:
       - BEADS_DIR=/workspace/host/.beads
     volumes:
       - ./Hermes/config.yaml:/etc/hermes-bootstrap/config.yaml:ro
-      - ./Hermes/workspace:/workspace
+      - ./workspace:/workspace
       - .:/workspace/host
       - ${MODEL_ROOT:?set MODEL_ROOT in .env}:/models
       - ${DOCKER_BIN:-/usr/bin/docker}:/usr/local/bin/docker:ro
@@ -197,9 +202,13 @@ services:
       - beads
       - gemma-hermes
       - stt
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    group_add:
+      - "${DOCKER_GID:-968}"
     env_file:
       - ./Hermes/.env
     environment:
+      - HERMES_HOME=/workspace/.hermes
       - BEADS_DOLT_SHARED_SERVER=1
       - BEADS_DOLT_SERVER_HOST=beads
       - BEADS_DOLT_SERVER_PORT=3308
@@ -210,8 +219,7 @@ services:
       - "127.0.0.1:${HERMES_API_PORT:-8642}:8642"
     volumes:
       - ./Hermes/config.yaml:/etc/hermes-bootstrap/config.yaml:ro
-      - hermes-home:/root/.hermes
-      - ./Hermes/workspace:/workspace
+      - ./workspace:/workspace
       - .:/workspace/host
       - ${MODEL_ROOT:?set MODEL_ROOT in .env}:/models
       - ${DOCKER_BIN:-/usr/bin/docker}:/usr/local/bin/docker:ro
@@ -220,6 +228,3 @@ services:
     command:
       - hermes
       - gateway
-
-volumes:
-  hermes-home:

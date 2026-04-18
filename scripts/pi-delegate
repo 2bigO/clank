@@ -2,7 +2,7 @@
 set -euo pipefail
 
 container="${PI_CONTAINER:-pi}"
-workdir="${PI_WORKDIR:-/workspace}"
+workdir="${PI_WORKDIR:-/workspace/host}"
 
 if [[ "${1:-}" == "--cwd" ]]; then
   if [[ $# -lt 2 ]]; then

@@ -83,7 +83,7 @@ services:
       - --cache-type-v
       - turbo4
       - --ctx-size
-      - "32768"
+      - "262144"
       - --parallel
       - "1"
       - --host

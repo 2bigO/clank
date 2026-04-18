@@ -43,8 +43,7 @@ RUN --mount=type=bind,source=repos/huggingface_hub,target=/mnt/src/huggingface_h
 RUN python -m pip install --upgrade pip setuptools wheel \
     && python -m pip install /opt/src/hermes-agent[cli,pty] python-telegram-bot requests
 
-COPY tools/HuggingFace /opt/src/tools/HuggingFace
-COPY tools/PiOrchestrator /opt/src/tools/PiOrchestrator
+COPY tools/ /opt/src/tools/
 RUN python -m pip install /opt/src/huggingface_hub[hf_xet]
 
 COPY --from=beads-builder /out/bd /usr/local/bin/bd

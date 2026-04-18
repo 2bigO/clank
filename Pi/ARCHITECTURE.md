@@ -99,3 +99,6 @@ animation workflow remains available through
   reused automatically.
 - Long-running foreground dev servers are disallowed in Pi prompts; plan items
   should use bounded build, test, lint, or smoke commands.
+- Qwopus availability depends on the model server reaching `/v1/models`.
+  `llama-server-watchdog` bounds startup and releases ROCm resources if the
+  server remains stuck in `503 Loading model`.

@@ -61,9 +61,14 @@ services:
       - seccomp=unconfined
     ports:
       - "${QWOPUS_PORT:-8080}:8080"
+    restart: "on-failure:2"
+    environment:
+      - MODEL_READY_TIMEOUT=${QWOPUS_READY_TIMEOUT:-900}
+      - MODEL_READY_POLL_INTERVAL=5
     volumes:
       - ${MODEL_ROOT:?set MODEL_ROOT in .env}:/models:ro
     command:
+      - llama-server-watchdog
       - llama-server
       - --model
       - ${QWOPUS_MODEL_PATH:-/models/unsloth/Qwen3.6-35B-A3B-GGUF/Qwen3.6-35B-A3B-Q8_0.gguf}
@@ -85,6 +90,14 @@ services:
       - 0.0.0.0
       - --port
       - "8080"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/v1/models', timeout=2)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 2m
 
   gemma-hermes:
     build:
@@ -102,9 +115,14 @@ services:
       - seccomp=unconfined
     ports:
       - "${GEMMA_PORT:-8081}:8080"
+    restart: "on-failure:2"
+    environment:
+      - MODEL_READY_TIMEOUT=${GEMMA_READY_TIMEOUT:-300}
+      - MODEL_READY_POLL_INTERVAL=5
     volumes:
       - ${MODEL_ROOT:?set MODEL_ROOT in .env}:/models:ro
     command:
+      - llama-server-watchdog
       - llama-server
       - --model
       - ${GEMMA_MODEL_PATH:-/models/Jackrong/Gemopus-4-E4B-it-GGUF/gemma-4-E4B-it.Q8_0.gguf}
@@ -128,6 +146,14 @@ services:
       - 0.0.0.0
       - --port
       - "8080"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/v1/models', timeout=2)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 1m
 
   pi:
     build:

@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+timeout_seconds="${MODEL_READY_TIMEOUT:-900}"
+poll_interval="${MODEL_READY_POLL_INTERVAL:-5}"
+kill_grace_seconds="${MODEL_READY_KILL_GRACE_SECONDS:-10}"
+port="8080"
+
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+  if [[ "${args[$i]}" == "--port" && $((i + 1)) -lt ${#args[@]} ]]; then
+    port="${args[$((i + 1))]}"
+    break
+  fi
+done
+
+if [[ ${#args[@]} -eq 0 ]]; then
+  echo "llama-server-watchdog: missing command" >&2
+  exit 64
+fi
+
+"${args[@]}" &
+child_pid="$!"
+
+cleanup() {
+  if kill -0 "${child_pid}" 2>/dev/null; then
+    kill "${child_pid}" 2>/dev/null || true
+    sleep "${kill_grace_seconds}" || true
+    kill -KILL "${child_pid}" 2>/dev/null || true
+  fi
+}
+trap cleanup INT TERM
+
+is_ready() {
+  python3 - "$port" <<'PY'
+import json
+import sys
+import urllib.error
+import urllib.request
+
+port = sys.argv[1]
+try:
+    with urllib.request.urlopen(f"http://127.0.0.1:{port}/v1/models", timeout=2) as response:
+        if response.status != 200:
+            raise SystemExit(1)
+        payload = json.loads(response.read().decode("utf-8"))
+        if payload.get("object") == "list" or payload.get("data"):
+            raise SystemExit(0)
+except Exception:
+    raise SystemExit(1)
+raise SystemExit(1)
+PY
+}
+
+dump_diagnostics() {
+  echo "llama-server-watchdog: model server did not become ready within ${timeout_seconds}s" >&2
+  echo "llama-server-watchdog: process status" >&2
+  ps -o pid,ppid,stat,etime,%cpu,%mem,rss,args -p "${child_pid}" >&2 || true
+  echo "llama-server-watchdog: radeontop snapshot" >&2
+  timeout 3 radeontop -d - -l 1 >&2 2>/dev/null || true
+  echo "llama-server-watchdog: kfd process accounting" >&2
+  find /sys/devices/virtual/kfd/kfd/proc -maxdepth 3 -type f -print -exec sh -c 'echo "--- $1"; cat "$1" 2>/dev/null | head -40' sh {} \; >&2 2>/dev/null || true
+}
+
+deadline=$((SECONDS + timeout_seconds))
+while kill -0 "${child_pid}" 2>/dev/null; do
+  if is_ready; then
+    echo "llama-server-watchdog: model server ready on port ${port}" >&2
+    wait "${child_pid}"
+    exit $?
+  fi
+
+  if (( SECONDS >= deadline )); then
+    dump_diagnostics
+    cleanup
+    wait "${child_pid}" 2>/dev/null || true
+    exit 124
+  fi
+
+  sleep "${poll_interval}"
+done
+
+wait "${child_pid}"

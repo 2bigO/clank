@@ -39,6 +39,7 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
   - model: `${QWOPUS_MODEL_PATH}`
   - alias: `qwopus-pi`
   - host port: `${QWOPUS_PORT}`
+  - startup is bounded by `llama-server-watchdog` / `${QWOPUS_READY_TIMEOUT:-900}`
 - `pi`
   - dedicated coding worker
   - image: `Pi/Dockerfile`
@@ -137,6 +138,7 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
 - `scripts/init.sh` is the canonical bootstrap for missing repos and env files
 - rebuild after updating `repos/*` or `tools/*`
 - HuggingFace support depends on both `repos/huggingface_hub/` and `tools/HuggingFace/`
+- TurboQuant model servers use `TurboQuant/llama-server-watchdog`; rebuild after changing the wrapper or model-server command wiring
 
 ## Constraints
 
@@ -149,6 +151,7 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
 - Pi runs as the host UID/GID via docker-compose `user:` so files written in `/workspace` or `/workspace/host` are host-owned
 - HuggingFace downloads land in `/models` and are chowned back to the host UID/GID by the tool
 - Telegram download progress tracking is gateway-owned: the gateway edits one tracker message every ~5s until completion
+- Stuck `llama-server` startup is treated as unhealthy: the watchdog kills a child that remains in `503 Loading model` beyond its timeout so ROCm memory does not stay pinned
 
 ## Ops
 

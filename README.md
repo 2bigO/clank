@@ -9,6 +9,8 @@ Portable Strix Halo local-agent stack.
 - Pi + Qwopus: coding worker
 - whisper.cpp: local STT
 - llama.cpp TurboQuant ROCm builds for LLM serving
+- TurboQuant model servers run under `llama-server-watchdog`, which exits the
+  container if `/v1/models` stays unavailable past the configured ready timeout.
 
 ## Workspace
 
@@ -82,6 +84,15 @@ docker compose exec pi pi
 docker compose exec hermes hermes
 ./scripts/pi-delegate "task"
 ```
+
+Model server readiness timeouts:
+
+- `QWOPUS_READY_TIMEOUT` defaults to `900` seconds
+- `GEMMA_READY_TIMEOUT` defaults to `300` seconds
+
+If a model load wedges while returning `503 Loading model`, the watchdog dumps
+process, `radeontop`, and KFD accounting before killing the child process so
+ROCm memory is released.
 
 Hermes API:
 

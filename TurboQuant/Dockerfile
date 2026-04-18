@@ -109,12 +109,16 @@ RUN --mount=type=cache,target=/var/cache/dnf \
       && microdnf clean all
 
 COPY --from=builder /usr/local/ /usr/local/
+COPY TurboQuant/llama-server-watchdog /usr/local/bin/llama-server-watchdog
 
 RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/local.conf \
     && echo "/usr/local/lib64" >> /etc/ld.so.conf.d/local.conf \
     && cp -n /usr/local/lib/libllama*.so* /usr/lib64/ 2>/dev/null || true \
     && cp -n /usr/local/lib64/libllama*.so* /usr/lib64/ 2>/dev/null || true \
+    && chmod +x /usr/local/bin/llama-server-watchdog \
     && ldconfig
+
+ENV PATH=/opt/rocm/bin:/usr/local/bin:/usr/bin
 
 WORKDIR /workspace
 

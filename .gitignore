@@ -13,3 +13,5 @@ sessions/
 .doltcfg/
 beads_global/
 workspace/
+Beads/state/*
+!Beads/state/.gitkeep

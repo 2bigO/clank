@@ -75,7 +75,7 @@ services:
       - --alias
       - qwopus-pi
       - --gpu-layers
-      - "999"
+      - "-1"
       - --flash-attn
       - "on"
       - --cache-type-k
@@ -83,7 +83,7 @@ services:
       - --cache-type-v
       - turbo4
       - --ctx-size
-      - "262144"
+      - "32768"
       - --parallel
       - "1"
       - --host

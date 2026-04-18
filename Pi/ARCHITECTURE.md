@@ -25,7 +25,9 @@ state, and the gateway owns Telegram progress updates.
 
 - `pi`: dedicated coding worker, `HOME=/workspace`, live repo at
   `/workspace/host`, scratch projects under `/workspace/code`.
-- `qwopus-pi`: local OpenAI-compatible `llama-server` alias `qwopus-pi`.
+- `qwopus-pi`: local OpenAI-compatible `llama-server` alias `qwopus-pi`,
+  currently `--ctx-size 32768` with llama.cpp fit-controlled partial ROCm
+  offload.
 - `hermes` / `hermes-api`: orchestration, skills, gateway, tool registry, and
   tracker polling.
 - `beads`: shared Dolt SQL server for Beads.
@@ -102,3 +104,5 @@ animation workflow remains available through
 - Qwopus availability depends on the model server reaching `/v1/models`.
   `llama-server-watchdog` bounds startup and releases ROCm resources if the
   server remains stuck in `503 Loading model`.
+- Full forced Qwopus offload at native 262k context can stall after tensor
+  loading; keep `--gpu-layers -1` unless retesting the offload plan.

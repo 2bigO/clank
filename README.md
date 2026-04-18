@@ -90,6 +90,10 @@ Model server readiness timeouts:
 - `QWOPUS_READY_TIMEOUT` defaults to `900` seconds
 - `GEMMA_READY_TIMEOUT` defaults to `300` seconds
 
+Qwopus runs at `--ctx-size 32768` with `--gpu-layers -1` so llama.cpp
+`fit` can choose a ROCm-safe partial offload. Forcing `--gpu-layers 999`
+with native `262144` context can wedge after tensor offload.
+
 If a model load wedges while returning `503 Loading model`, the watchdog dumps
 process, `radeontop`, and KFD accounting before killing the child process so
 ROCm memory is released.

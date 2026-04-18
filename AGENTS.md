@@ -39,6 +39,7 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
   - model: `${QWOPUS_MODEL_PATH}`
   - alias: `qwopus-pi`
   - host port: `${QWOPUS_PORT}`
+  - context/offload: `--ctx-size 32768`, `--gpu-layers -1` so llama.cpp fit can choose partial ROCm offload
   - startup is bounded by `llama-server-watchdog` / `${QWOPUS_READY_TIMEOUT:-900}`
 - `pi`
   - dedicated coding worker
@@ -151,6 +152,7 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
 - Pi runs as the host UID/GID via docker-compose `user:` so files written in `/workspace` or `/workspace/host` are host-owned
 - HuggingFace downloads land in `/models` and are chowned back to the host UID/GID by the tool
 - Telegram download progress tracking is gateway-owned: the gateway edits one tracker message every ~5s until completion
+- Qwopus must not force full GPU offload at native 262k context; that can wedge after tensor loading on Strix Halo ROCm
 - Stuck `llama-server` startup is treated as unhealthy: the watchdog kills a child that remains in `503 Loading model` beyond its timeout so ROCm memory does not stay pinned
 
 ## Ops

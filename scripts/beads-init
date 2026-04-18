@@ -8,8 +8,10 @@ port="${BEADS_DOLT_SERVER_PORT:-3308}"
 
 docker compose up -d beads >/dev/null
 
-docker compose exec -T beads bash -lc \
-  "cd /workspace && bd init --shared-server --external --server-host 127.0.0.1 --server-port ${port} --server-user root --database ${db_name} --non-interactive --skip-hooks --skip-agents --quiet || true"
+if ! docker compose exec -T beads bash -lc 'cd /workspace && bd ready --json >/dev/null 2>&1'; then
+  docker compose exec -T beads bash -lc \
+    "cd /workspace && bd init --shared-server --external --server-host 127.0.0.1 --server-port ${port} --server-user root --database ${db_name} --non-interactive --skip-hooks --skip-agents --quiet"
+fi
 
 mkdir -p "$beads_dir"
 cat > "$beads_dir/metadata.json" <<EOF
@@ -30,5 +32,21 @@ dolt:
 EOF
 chmod 700 "$beads_dir"
 
+# Beads auto-export files are generated cache artifacts. Older container runs
+# may have created them under a mismatched UID, which prevents Pi/Hermes from
+# refreshing them even though the Dolt server itself is healthy. Remove only
+# unwritable stale files; intact files avoid a noisy auto-export git-add retry.
+for export_file in \
+  "$beads_dir/export-state.json" \
+  "$beads_dir/interactions.jsonl" \
+  "$beads_dir/issues.jsonl" \
+  "$beads_dir/last-touched"
+do
+  if [[ -e "$export_file" && ! -w "$export_file" ]]; then
+    rm -f "$export_file"
+  fi
+done
+
 docker compose exec -T pi bash -lc 'cd /workspace/host && bd ready --json >/dev/null'
+docker compose exec -T pi bash -lc 'cd /workspace/host && bd export --output .beads/issues.jsonl >/dev/null 2>&1'
 printf 'Beads initialized for %s using database %s\n' "$repo_root" "$db_name"

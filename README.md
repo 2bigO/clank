@@ -15,11 +15,11 @@ Portable Strix Halo local-agent stack.
 - Hermes default cwd: `/workspace` (isolated scratch workspace)
 - Hermes sees the live repo at `/workspace/host`
 - Pi default cwd: `/workspace`
+- Pi sees the live repo at `/workspace/host`
 - Local Hermes skills: `Hermes/skills/`
 
-Pi still sees the live repo directly at `/workspace`, so when delegating from Hermes to Pi:
-
-- Hermes path `/workspace/host/...` maps to Pi path `/workspace/...`
+Scratch projects live under `/workspace/code/...`. Live repo edits must use
+`/workspace/host/...` from both Hermes and Pi.
 
 ## Beads
 
@@ -31,6 +31,18 @@ Pi still sees the live repo directly at `/workspace`, so when delegating from He
 ```
 
 - Pi and Hermes both have `bd` available after build.
+- `scripts/beads-init` also refreshes generated `.beads/*.jsonl` export files
+  so stale container-owned cache files do not block Pi/Hermes writes.
+
+## Pi Project Pipeline
+
+- Hermes skill `pi-coder` starts tracked work through `pi_project_*` tools.
+- Pi executes plan items in `/workspace/code/<ProjectName>`.
+- Beads persists the project epic, child tasks, dependencies, and comments.
+- Hermes gateway owns the editable Telegram tracker message.
+- Each completed Pi step can emit an architecture report and render a short
+  Manim video under `/workspace/animations/...`; richer revisions can use the
+  upstream `skills/creative/manim-video` skill in `repos/hermes-agent`.
 
 ## Quickstart
 

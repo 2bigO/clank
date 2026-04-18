@@ -69,7 +69,7 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
 - normal chat -> `gemma-hermes`
 - voice -> Hermes STT adapter -> `stt` -> transcript -> `gemma-hermes`
 - coding -> Hermes skill `pi-coder` -> `pi_project_*` tools -> background Pi work in shared `/workspace`
-- completed Pi steps can emit architecture reports that Hermes renders into Manim artifacts under `/workspace/animations/...`
+- completed Pi steps can emit architecture reports that Hermes renders into Manim artifacts under `/workspace/animations/...`; richer animation revisions can use `repos/hermes-agent/skills/creative/manim-video`
 - direct Pi delegation wrapper still lives at `/workspace/host/scripts/pi-delegate`
 - Pi uses `/workspace` for scratch projects and `/workspace/host` for live repo work
 
@@ -110,6 +110,8 @@ Portable Strix Halo local-agent stack. Telegram is the control plane. Hermes orc
   - stable headless Pi wrapper
 - `Hermes/skills/autonomous-ai-agents/pi-coder/SKILL.md`
   - Hermes coding delegation entrypoint
+- `Pi/ARCHITECTURE.md`
+  - Pi project pipeline handoff/status notes
 - `repos/`
   - local source checkouts used at Docker build time
   - gitignored
